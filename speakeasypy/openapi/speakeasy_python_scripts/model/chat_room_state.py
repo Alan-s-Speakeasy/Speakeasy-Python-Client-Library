@@ -31,10 +31,10 @@ from speakeasy_python_scripts.exceptions import ApiAttributeError
 
 def lazy_import():
     from speakeasy_python_scripts.model.chat_message_reaction import ChatMessageReaction
-    from speakeasy_python_scripts.model.chat_room_admin_info import ChatRoomAdminInfo
+    from speakeasy_python_scripts.model.chat_room_info import ChatRoomInfo
     from speakeasy_python_scripts.model.rest_chat_message import RestChatMessage
     globals()['ChatMessageReaction'] = ChatMessageReaction
-    globals()['ChatRoomAdminInfo'] = ChatRoomAdminInfo
+    globals()['ChatRoomInfo'] = ChatRoomInfo
     globals()['RestChatMessage'] = RestChatMessage
 
 
@@ -91,7 +91,7 @@ class ChatRoomState(ModelNormal):
         """
         lazy_import()
         return {
-            'info': (ChatRoomAdminInfo,),  # noqa: E501
+            'info': (ChatRoomInfo,),  # noqa: E501
             'messages': ([RestChatMessage],),  # noqa: E501
             'reactions': ([ChatMessageReaction],),  # noqa: E501
         }
@@ -118,7 +118,7 @@ class ChatRoomState(ModelNormal):
         """ChatRoomState - a model defined in OpenAPI
 
         Args:
-            info (ChatRoomAdminInfo):
+            info (ChatRoomInfo):
             messages ([RestChatMessage]):
             reactions ([ChatMessageReaction]):
 
@@ -207,7 +207,7 @@ class ChatRoomState(ModelNormal):
         """ChatRoomState - a model defined in OpenAPI
 
         Args:
-            info (ChatRoomAdminInfo):
+            info (ChatRoomInfo):
             messages ([RestChatMessage]):
             reactions ([ChatMessageReaction]):
 

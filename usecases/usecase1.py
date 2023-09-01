@@ -11,8 +11,16 @@ speakeasy = Speakeasy(host=DEFAULT_HOST_URL, username=test_username, password=te
 speakeasy.login()
 
 while True:
-    print('All rooms: ', speakeasy.get_rooms())
-    print('Active rooms: ', speakeasy.get_active_rooms())
-    time.sleep(3)
+    # print('All rooms: ', speakeasy.get_rooms())
+    # print('Active rooms: ', speakeasy.get_active_rooms())
+    rooms = speakeasy.get_active_rooms()
+    for room in rooms:
+        print(f"-> room {room.room_id}:")
+        messages = room.get_messages()
+        reactions = room.get_reactions()
+
+        print(f"\tmessages: {messages}")
+        print(f"\treactions: {reactions}")
+    time.sleep(2)
 
 

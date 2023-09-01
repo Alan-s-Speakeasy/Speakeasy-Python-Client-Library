@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import time
 
 
 class Chatroom:
@@ -38,17 +39,46 @@ class Chatroom:
         if self.session_token is None or self.chat_api is None:
             logging.error(f"No session_token or chat_api for chatroom {self.room_id}, "
                           f"api requests by this chatroom will result in an error")
-
         # TODO: store answered ordinals for message and reaction
 
-    def __get_chat_room_state(self):  # TODO: rate limit
-        pass
+        self.__request_limit = 3  # seconds
+        self.__state_cache = None  # ChatRoomState (including messages and reactions from api call)
+        self.__last_state_call = 0
+        self.__last_post_call = 0  # TODO: message queue?
+
+    def __update_chat_room_state(self):
+        """ Cache the state of this room and implement a request rate limit for this API call. """
+        if self.session_token:
+            current_time = time.time()
+            elapsed_time = current_time - self.__last_state_call
+            if elapsed_time >= self.__request_limit or self.__state_cache is None:
+                try:
+                    response = self.chat_api.get_api_room_with_roomid_with_since(
+                        room_id=self.room_id, since=0, session=self.session_token)
+                    if response:
+                        self.__state_cache = response
+                    else:
+                        logging.error(f"Failed to update the state of room {self.room_id}.")
+                    self.__last_state_call = current_time
+                except Exception as e:
+                    logging.error(f"An error occurred while updating the state of room {self.room_id}:", e)
+
+        else:
+            logging.error(f"This room {self.room_id} has no active session. Updating room state failed.")
 
     def get_messages(self):
-        pass
+        self.__update_chat_room_state()
+        if self.__state_cache is None:
+            logging.error(f"Updating room state failed. No messages in room {self.room_id}.")
+            return []
+        return self.__state_cache.messages
 
     def get_reactions(self):
-        pass
+        self.__update_chat_room_state()
+        if self.__state_cache is None:
+            logging.error(f"Updating room state failed. No reactions in room {self.room_id}.")
+            return []
+        return self.__state_cache.reactions
 
     def post_messages(self):
         pass

@@ -193,7 +193,7 @@ class ChatRoomInfo(ModelNormal):
         self.uid = uid
         self.remaining_time = remaining_time
         self.user_aliases = user_aliases
-        self.my_alias = alias
+        self.alias = alias
         self.prompt = prompt
         self.mark_as_no_feedback = mark_as_no_feedback
         for var_name, var_value in kwargs.items():

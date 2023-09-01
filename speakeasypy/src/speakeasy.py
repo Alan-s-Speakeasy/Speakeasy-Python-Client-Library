@@ -62,6 +62,7 @@ class Speakeasy:
             print("No active session to logout from.")
 
     def get_rooms(self) -> list[Chatroom]:  # includes non-active chatrooms (i.e., remaining_time == 0)
+        # TODO: Cache and rate limit
         if self.session_token:
             try:
                 # Call the get_api_rooms endpoint to fetch the list of chat rooms info
