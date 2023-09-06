@@ -39,24 +39,28 @@ class Chatroom:
         if self.session_token is None or self.chat_api is None:
             logging.error(f"No session_token or chat_api for chatroom {self.room_id}, "
                           f"api requests by this chatroom will result in an error")
-        # TODO: store answered ordinals for message and reaction
+        # Store ordinals for processed messages and reactions to exclude them from "new" messages.
+        self.processed_ordinals = {
+            'messages': [],
+            'reactions': [],
+        }
 
-        self.__request_limit = 3  # seconds
-        self.__state_cache = None  # ChatRoomState (including messages and reactions from api call)
+        self.__request_limit = kwargs.get('request_limit', 3)  # seconds
+        self.__state_api_cache = None  # ChatRoomState (including messages and reactions from api call)
         self.__last_state_call = 0
-        self.__last_post_call = 0  # TODO: message queue?
+        self.__last_post_call = 0
 
     def __update_chat_room_state(self):
         """ Cache the state of this room and implement a request rate limit for this API call. """
         if self.session_token:
             current_time = time.time()
             elapsed_time = current_time - self.__last_state_call
-            if elapsed_time >= self.__request_limit or self.__state_cache is None:
+            if elapsed_time >= self.__request_limit or self.__state_api_cache is None:
                 try:
                     response = self.chat_api.get_api_room_with_roomid_with_since(
                         room_id=self.room_id, since=0, session=self.session_token)
                     if response:
-                        self.__state_cache = response
+                        self.__state_api_cache = response
                     else:
                         logging.error(f"Failed to update the state of room {self.room_id}.")
                     self.__last_state_call = current_time
@@ -66,22 +70,66 @@ class Chatroom:
         else:
             logging.error(f"This room {self.room_id} has no active session. Updating room state failed.")
 
-    def get_messages(self):
+    def get_messages(self, only_partner=True, only_new=True):
         self.__update_chat_room_state()
-        if self.__state_cache is None:
+        if self.__state_api_cache is None:
             logging.error(f"Updating room state failed. No messages in room {self.room_id}.")
             return []
-        return self.__state_cache.messages
 
-    def get_reactions(self):
+        filtered_messages = self.__state_api_cache.messages
+
+        if only_partner:  # TODO: openAPI will automatically converts 'authorAlias' to 'author_alias'
+            filtered_messages = [message for message in filtered_messages if message['author_alias'] != self.my_alias]
+
+        if only_new:
+            filtered_messages = [message for message in filtered_messages if
+                                 message['ordinal'] not in self.processed_ordinals['messages']]
+
+        return filtered_messages
+
+    def get_reactions(self, only_new=True):
         self.__update_chat_room_state()
-        if self.__state_cache is None:
+        if self.__state_api_cache is None:
             logging.error(f"Updating room state failed. No reactions in room {self.room_id}.")
             return []
-        return self.__state_cache.reactions
 
-    def post_messages(self):
-        pass
+        filtered_reactions = self.__state_api_cache.reactions
+        if only_new:
+            filtered_reactions = [reaction for reaction in filtered_reactions if
+                                  reaction['message_ordinal'] not in self.processed_ordinals['reactions']]
+        return filtered_reactions
+
+    def post_messages(self, message):
+        if self.session_token:
+            # Check if the time elapsed since the last post call is less than the request limit.
+            current_time = time.time()
+            elapsed_time = current_time - self.__last_post_call
+            # If elapsed time is less than the request limit, sleep for the remaining time to enforce rate limiting.
+            if elapsed_time < self.__request_limit:
+                time.sleep(self.__request_limit - elapsed_time)
+                print(f"-> Sleep {self.__request_limit - elapsed_time} secs")
+
+            try:
+                response = self.chat_api.post_api_room_with_roomid(
+                    room_id=self.room_id, session=self.session_token, body=message)
+                if not response:
+                    logging.error(f"Failed to post message to room {self.room_id}.")
+            except Exception as e:
+                logging.error(f"An error occurred while posting the message to room {self.room_id}:", e)
+
+            self.__last_post_call = time.time()  # store the completed time
+        else:
+            logging.error(f"This room {self.room_id} has no active session. Posting messages failed.")
+
+    def mark_as_processed(self, msg_or_rec):
+        msg_ordinal = msg_or_rec.get('ordinal', None)
+        rec_ordinal = msg_or_rec.get('message_ordinal', None)
+        if msg_ordinal:
+            self.processed_ordinals['messages'].append(msg_ordinal)
+        elif rec_ordinal:
+            self.processed_ordinals['reactions'].append(rec_ordinal)
+        else:
+            logging.error("Please pass a message or reaction object to mark it as processed.")
 
     def get_chat_partner(self) -> str:
         # get the alias of your chat partner
