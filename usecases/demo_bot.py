@@ -40,7 +40,6 @@ class Agent:
                 # Retrieve reactions from this chat room.
                 # If only_new=True, it filters out reactions that have already been marked as processed.
                 for reaction in room.get_reactions(only_new=True):
-                    # TODO: openAPI will automatically converts 'messageOrdinal' to 'message_ordinal'
                     print(
                         f"\t- Chatroom {room.room_id} "
                         f"- new reaction #{reaction.message_ordinal}: '{reaction.type}' "
@@ -59,5 +58,5 @@ class Agent:
 
 
 if __name__ == '__main__':
-    demo_bot = Agent("bot1", "bot1")
+    demo_bot = Agent("bot_name", "bot_pass")
     demo_bot.listen()
