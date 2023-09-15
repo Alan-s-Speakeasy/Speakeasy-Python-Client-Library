@@ -1,8 +1,8 @@
-from speakeasy_python_scripts import Configuration
-from speakeasy_python_scripts.apis import UserApi
-from speakeasy_python_scripts.apis import ChatApi
-from speakeasy_python_scripts.api_client import ApiClient
-from speakeasy_python_scripts.models import LoginRequest
+from speakeasypy.openapi.client import Configuration
+from speakeasypy.openapi.client.apis import UserApi
+from speakeasypy.openapi.client.apis import ChatApi
+from speakeasypy.openapi.client.api_client import ApiClient
+from speakeasypy.openapi.client.models import LoginRequest
 from speakeasypy.src.chatroom import Chatroom
 from typing import Dict
 

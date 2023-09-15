@@ -1,6 +1,0 @@
-python_dateutil >= 2.5.3
-setuptools >= 21.0.0
-# urllib3 >= 1.25.3
-# to avoid warning: "NotOpenSSLWarning: urllib3 v2.0 only supports OpenSSL 1.1.1+"
-# please see 'https://stackoverflow.com/questions/76187256/importerror-urllib3-v2-0-only-supports-openssl-1-1-1-currently-the-ssl-modu'
-urllib3 == 1.26.15
