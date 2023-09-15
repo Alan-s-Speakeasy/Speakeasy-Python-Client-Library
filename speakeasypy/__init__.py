@@ -1,2 +1,2 @@
 from speakeasypy.src.speakeasy import Speakeasy
-from speakeasypy.src.speakeasy import Chatroom
+from speakeasypy.src.chatroom import Chatroom

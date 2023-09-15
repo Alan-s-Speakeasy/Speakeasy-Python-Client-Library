@@ -29,7 +29,7 @@ class Speakeasy:
         self._chatrooms_dict: Dict[str, Chatroom] = {}  # map room_id to Chatroom (cache)
         self.__last_call_for_rooms = 0
 
-        self.__request_limit = 3
+        self.__request_limit = 1  # TODO: change the default value here!
 
         logging.basicConfig(level=logging.INFO)
         atexit.register(self.logout)

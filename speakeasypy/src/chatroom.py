@@ -1,6 +1,10 @@
-from datetime import datetime
 import logging
 import time
+
+from datetime import datetime
+from typing import List, Union
+
+from speakeasy_python_scripts.models import RestChatMessage, ChatMessageReaction
 
 
 class Chatroom:
@@ -45,7 +49,7 @@ class Chatroom:
             'reactions': [],
         }
 
-        self.__request_limit = kwargs.get('request_limit', 3)  # seconds
+        self.__request_limit = kwargs.get('request_limit', 1)  # seconds
         self.__state_api_cache = None  # ChatRoomState (including messages and reactions from api call)
         self.__last_state_call = 0
         self.__last_post_call = 0
@@ -70,7 +74,7 @@ class Chatroom:
         else:
             logging.error(f"This room {self.room_id} has no active session. Updating room state failed.")
 
-    def get_messages(self, only_partner=True, only_new=True):
+    def get_messages(self, only_partner=True, only_new=True) -> List[RestChatMessage]:
         self.__update_chat_room_state()
         if self.__state_api_cache is None:
             logging.error(f"Updating room state failed. No messages in room {self.room_id}.")
@@ -79,15 +83,15 @@ class Chatroom:
         filtered_messages = self.__state_api_cache.messages
 
         if only_partner:  # TODO: openAPI will automatically converts 'authorAlias' to 'author_alias'
-            filtered_messages = [message for message in filtered_messages if message['author_alias'] != self.my_alias]
+            filtered_messages = [message for message in filtered_messages if message.author_alias != self.my_alias]
 
         if only_new:
             filtered_messages = [message for message in filtered_messages if
-                                 message['ordinal'] not in self.processed_ordinals['messages']]
+                                 message.ordinal not in self.processed_ordinals['messages']]
 
         return filtered_messages
 
-    def get_reactions(self, only_new=True):
+    def get_reactions(self, only_new=True) -> List[ChatMessageReaction]:
         self.__update_chat_room_state()
         if self.__state_api_cache is None:
             logging.error(f"Updating room state failed. No reactions in room {self.room_id}.")
@@ -96,7 +100,7 @@ class Chatroom:
         filtered_reactions = self.__state_api_cache.reactions
         if only_new:
             filtered_reactions = [reaction for reaction in filtered_reactions if
-                                  reaction['message_ordinal'] not in self.processed_ordinals['reactions']]
+                                  reaction.message_ordinal not in self.processed_ordinals['reactions']]
         return filtered_reactions
 
     def post_messages(self, message):
@@ -107,8 +111,7 @@ class Chatroom:
             # If elapsed time is less than the request limit, sleep for the remaining time to enforce rate limiting.
             if elapsed_time < self.__request_limit:
                 time.sleep(self.__request_limit - elapsed_time)
-                print(f"-> Sleep {self.__request_limit - elapsed_time} secs")
-
+                print(f"(Sleep {self.__request_limit - elapsed_time} secs to avoid posting requests too frequently.)")
             try:
                 response = self.chat_api.post_api_room_with_roomid(
                     room_id=self.room_id, session=self.session_token, body=message)
@@ -121,13 +124,11 @@ class Chatroom:
         else:
             logging.error(f"This room {self.room_id} has no active session. Posting messages failed.")
 
-    def mark_as_processed(self, msg_or_rec):
-        msg_ordinal = msg_or_rec.get('ordinal', None)
-        rec_ordinal = msg_or_rec.get('message_ordinal', None)
-        if msg_ordinal:
-            self.processed_ordinals['messages'].append(msg_ordinal)
-        elif rec_ordinal:
-            self.processed_ordinals['reactions'].append(rec_ordinal)
+    def mark_as_processed(self, msg_or_rec: Union[RestChatMessage, ChatMessageReaction]):
+        if isinstance(msg_or_rec, RestChatMessage):
+            self.processed_ordinals['messages'].append(msg_or_rec.ordinal)
+        elif isinstance(msg_or_rec, ChatMessageReaction):
+            self.processed_ordinals['reactions'].append(msg_or_rec.message_ordinal)
         else:
             logging.error("Please pass a message or reaction object to mark it as processed.")
 

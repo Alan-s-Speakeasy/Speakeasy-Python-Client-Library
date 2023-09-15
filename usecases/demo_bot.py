@@ -27,13 +27,13 @@ class Agent:
                 for message in room.get_messages(only_partner=True, only_new=True):
                     print(
                         f"\t- Chatroom {room.room_id} "
-                        f"- new message #{message['ordinal']}: '{message['message']}' "
+                        f"- new message #{message.ordinal}: '{message.message}' "
                         f"- {self.get_time()}")
 
                     # Implement your agent here #
 
                     # Send a message to the corresponding chat room using the post_messages method of the room object.
-                    room.post_messages(f"Received your message: '{message['message']}' ")
+                    room.post_messages(f"Received your message: '{message.message}' ")
                     # Mark the message as processed, so it will be filtered out when retrieving new messages.
                     room.mark_as_processed(message)
 
@@ -43,12 +43,12 @@ class Agent:
                     # TODO: openAPI will automatically converts 'messageOrdinal' to 'message_ordinal'
                     print(
                         f"\t- Chatroom {room.room_id} "
-                        f"- new reaction #{reaction['message_ordinal']}: '{reaction['type']}' "
+                        f"- new reaction #{reaction.message_ordinal}: '{reaction.type}' "
                         f"- {self.get_time()}")
 
                     # Implement your agent here #
 
-                    room.post_messages(f"Received your reaction: '{reaction['type']}' ")
+                    room.post_messages(f"Received your reaction: '{reaction.type}' ")
                     room.mark_as_processed(reaction)
 
             time.sleep(listen_freq)

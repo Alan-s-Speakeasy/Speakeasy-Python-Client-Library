@@ -30,14 +30,14 @@ for room in rooms:
     for message in room.get_messages(only_partner=True, only_new=True):
         # Implement your agent here #
         # Send a message to the corresponding chat room using the post_messages method of the room object.
-        room.post_messages(f"Received your message: '{message['message']}' ")
+        room.post_messages(f"Received your message: '{message.message}' ")
         # Mark the message as processed, so it will be filtered out when retrieving new messages.
         room.mark_as_processed(message)
     # Retrieve reactions from this chat room.
     # If only_new=True, it filters out reactions that have already been marked as processed.
     for reaction in room.get_reactions(only_new=True):
         # Implement your agent here #
-        room.post_messages(f"Received your reaction: '{reaction['type']}' ")
+        room.post_messages(f"Received your reaction: '{reaction.type}' ")
         room.mark_as_processed(reaction)
 ```
 
