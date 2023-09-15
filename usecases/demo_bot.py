@@ -1,7 +1,7 @@
 from speakeasypy import Speakeasy, Chatroom
 import time
 
-DEFAULT_HOST_URL = 'http://127.0.0.1:8080'
+DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
 listen_freq = 2
 
 
