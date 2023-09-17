@@ -50,28 +50,40 @@ class Chatroom:
 
         self.__request_limit = kwargs.get('request_limit', 1)  # seconds
         self.__state_api_cache = None  # ChatRoomState (including messages and reactions from api call)
+        self.__last_msg_timestamp = 0
         self.__last_state_call = 0
         self.__last_post_call = 0
 
     def __update_chat_room_state(self):
         """ Cache the state of this room and implement a request rate limit for this API call. """
-        if self.session_token:
-            current_time = time.time()
-            elapsed_time = current_time - self.__last_state_call
-            if elapsed_time >= self.__request_limit or self.__state_api_cache is None:
-                try:
-                    response = self.chat_api.get_api_room_with_roomid_with_since(
-                        room_id=self.room_id, since=0, session=self.session_token)
-                    if response:
-                        self.__state_api_cache = response
-                    else:
-                        logging.error(f"Failed to update the state of room {self.room_id}.")
-                    self.__last_state_call = current_time
-                except Exception as e:
-                    logging.error(f"An error occurred while updating the state of room {self.room_id}:", e)
-
-        else:
+        if not self.session_token:
             logging.error(f"This room {self.room_id} has no active session. Updating room state failed.")
+            return
+        current_time = time.time()
+        elapsed_time = current_time - self.__last_state_call
+        if elapsed_time < self.__request_limit and self.__state_api_cache is not None:
+            return
+
+        try:
+            response = self.chat_api.get_api_room_with_roomid_with_since(
+                room_id=self.room_id, since=self.__last_msg_timestamp, session=self.session_token)
+            if response:
+                if self.__state_api_cache is None:
+                    self.__state_api_cache = response
+                else:
+                    # The reactions returned by the backend have nothing to do with the "since" parameter for now,
+                    # so just copy all reactions here.
+                    self.__state_api_cache.reactions = response.reactions
+                    # Append new messages and update the last timestamp
+                    for m in response.messages:
+                        if m.ordinal not in [msg.ordinal for msg in self.__state_api_cache.messages]:
+                            self.__state_api_cache.messages.append(m)
+                            self.__last_msg_timestamp = max(self.__last_msg_timestamp, m.time_stamp)
+            else:
+                logging.error(f"Failed to update the state of room {self.room_id}.")
+            self.__last_state_call = current_time
+        except Exception as e:
+            logging.error(f"An error occurred while updating the state of room {self.room_id}: {e}")
 
     def get_messages(self, only_partner=True, only_new=True) -> List[RestChatMessage]:
         self.__update_chat_room_state()
