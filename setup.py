@@ -19,5 +19,6 @@ setup(
     author_email=author_email,
     url=url,
     packages=packages,
+    python_requires='>=3.6',
     install_requires=install_requires,
 )

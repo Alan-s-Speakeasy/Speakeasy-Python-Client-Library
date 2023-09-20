@@ -1,4 +1,5 @@
 from speakeasypy import Speakeasy, Chatroom
+from typing import List
 import time
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
@@ -15,7 +16,7 @@ class Agent:
     def listen(self):
         while True:
             # only check active chatrooms (i.e., remaining_time > 0) if active=True.
-            rooms: list[Chatroom] = self.speakeasy.get_rooms(active=True)
+            rooms: List[Chatroom] = self.speakeasy.get_rooms(active=True)
             for room in rooms:
                 if not room.initiated:
                     # send a welcome message if room is not initiated

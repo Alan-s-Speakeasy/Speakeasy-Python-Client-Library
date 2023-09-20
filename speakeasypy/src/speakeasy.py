@@ -4,7 +4,7 @@ from speakeasypy.openapi.client.apis import ChatApi
 from speakeasypy.openapi.client.api_client import ApiClient
 from speakeasypy.openapi.client.models import LoginRequest
 from speakeasypy.src.chatroom import Chatroom
-from typing import Dict
+from typing import Dict, List
 
 import logging
 import atexit
@@ -100,7 +100,7 @@ class Speakeasy:
         else:
             logging.error("No active session. Please login first.")
 
-    def get_rooms(self, active=True) -> list[Chatroom]:  # includes non-active chatrooms (i.e., remaining_time == 0)
+    def get_rooms(self, active=True) -> List[Chatroom]:  # includes non-active chatrooms (i.e., remaining_time == 0)
         self.__update_chat_rooms()
 
         if active:  # only returns active chatrooms (i.e., remaining_time > 0)

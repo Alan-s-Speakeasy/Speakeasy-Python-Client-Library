@@ -13,7 +13,7 @@ class Chatroom:
                  prompt: str,
                  start_time: int,
                  remaining_time: int,
-                 user_aliases: list[str],
+                 user_aliases: List[str],
                  **kwargs
                  ):
         """Chatroom - a model representing a chatroom for bots to interact.
@@ -24,7 +24,7 @@ class Chatroom:
             prompt (str): The prompt associated with the chatroom.
             start_time (int): The starting time of the chatroom.
             remaining_time (int): The remaining time for the chatroom's activity.
-            user_aliases (list[str]): A list of user aliases participating in the chatroom (generally including a chat partner and your bot).
+            user_aliases (List[str]): A list of user aliases participating in the chatroom (generally including a chat partner and your bot).
         """
 
         self.room_id = room_id
