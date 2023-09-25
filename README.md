@@ -55,6 +55,57 @@ exceeds this limit, the returned result will be replaced with a cached value.
 ### 5. Additional Use Case
 You can find a more comprehensive use case in `speakeasy-python-client-library/usecases/demo_bot.py`.
 
+## Documentation for Relevant Classes
+
+### Class Speakeasy
+The `Speakeasy` class is the main entry point for `speakeasypy` library.
+
+#### Methods
+| Method      | Description                           | Parameters                                                                                                           | Returns                                                                   |
+|-------------|---------------------------------------|----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| `login`     | Logs in to the Speakeasy platform.    | None                                                                                                                 | `str`: Session token.                                                     |
+| `logout`    | Logs out from the Speakeasy platform. | None                                                                                                                 | None                                                                      |
+| `get_rooms` | Retrieves a list of chat rooms.       | `active` (bool, optional): If `True`, returns active chat rooms (rooms with remaining time > 0). Defaults to `True`. | `List[Chatroom]`: A list of Chatroom objects representing the chat rooms. |
+
+
+### Class Chatroom
+
+#### Methods
+| Method              | Description                                          | Parameters                                                                                                                                                                                                            | Returns                                                        |
+|---------------------|------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| `get_messages`      | Retrieves chat messages from the chatroom.           | `only_partner` (bool, optional): If `True`, returns messages from the chat partner only. Defaults to `True`. <br> `only_new` (bool, optional): If `True`, returns only new, unprocessed messages. Defaults to `True`. | `List[RestChatMessage]`: A list of chat messages.              |
+| `get_reactions`     | Retrieves reactions from the chatroom.               | `only_new` (bool, optional): If `True`, returns only new, unprocessed reactions. Defaults to `True`.                                                                                                                  | `List[ChatMessageReaction]`: A list of chat message reactions. |
+| `post_messages`     | Posts a message to the chatroom.                     | `message` (str): The message to be posted.                                                                                                                                                                            | None                                                           |
+| `mark_as_processed` | Marks a message or reaction as processed.            | `msg_or_rec` (RestChatMessage or ChatMessageReaction]): The message or reaction to mark as processed.                                                                                                                 | None                                                           |
+| `get_chat_partner`  | Gets the alias of your chat partner in the chatroom. | None                                                                                                                                                                                                                  | `str`: The alias of your chat partner.                         |
+
+#### Properties
+| Property Name    | Description                                                                                             | Type        |
+|------------------|---------------------------------------------------------------------------------------------------------|-------------|
+| `room_id`        | A unique identifier for the chatroom.                                                                   | `str`       |
+| `my_alias`       | The alias of this bot for the chatroom.                                                                 | `str`       |
+| `prompt`         | The prompt associated with the chatroom.                                                                | `str`       |
+| `start_time`     | The starting time of the chatroom.                                                                      | `int`       |
+| `remaining_time` | The remaining time for the chatroom's activity.                                                         | `int`       |
+| `user_aliases`   | A list of user aliases participating in the chatroom (generally including a chat partner and your bot). | `List[str]` |
+| `initiated`      | A flag indicating whether a welcome message has been sent.                                              | `bool`      |
+| `session_token`  | The session token associated with the chatroom.                                                         | `str`       |
+
+### Class RestChatMessage
+#### Properties
+| Property Name  | Type  |
+|----------------|-------|
+| `time_stamp`   | `int` |
+| `author_alias` | `str` |
+| `ordinal`      | `int` |
+| `message`      | `str` |
+
+### Class ChatMessageReaction
+#### Properties
+| Property Name     | Type                                                        |
+|-------------------|-------------------------------------------------------------|
+| `message_ordinal` | `int`                                                       |
+| `type`            | `str` (possible values: "THUMBS_UP", "THUMBS_DOWN", "STAR") |
 
 ## Development for this package
 This pacakge `speakeasypy` depends on an internal package `speakeasypy.openapi.client` which is generated by openapi. 
