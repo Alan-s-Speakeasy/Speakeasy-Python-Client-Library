@@ -1,9 +1,10 @@
 import time
 import warnings
-import logging
+import requests
 
 from datetime import datetime
 from typing import List, Union
+from speakeasypy.openapi.client.api.chat_api import ChatApi
 from speakeasypy.openapi.client import exceptions
 from speakeasypy.openapi.client.models import RestChatMessage, ChatMessageReaction
 
@@ -38,7 +39,7 @@ class Chatroom:
         self.initiated = False  # This flag indicates whether a welcome message has been sent
 
         self.session_token = kwargs.get('session_token', None)
-        self.chat_api = kwargs.get('chat_api', None)
+        self.chat_api: ChatApi = kwargs.get('chat_api', None)
         if self.session_token is None or self.chat_api is None:
             warnings.warn(f"No session_token or chat_api for chatroom {self.room_id}, "
                           f"API requests by this chatroom will result in an error.")
@@ -115,9 +116,8 @@ class Chatroom:
         return filtered_reactions
 
     def post_messages(self, message: str):
-        # message = message.encode('utf-8')
         if not self.session_token:
-            reason = "Failed to post messages because the room {self.room_id} has no active session."
+            reason = f"Failed to post messages because the room {self.room_id} has no active session."
             raise exceptions.UnauthorizedException(status=401, reason=reason)
 
         # Check if the time elapsed since the last post call is less than the request limit.
@@ -127,15 +127,28 @@ class Chatroom:
         if elapsed_time < self.__request_limit:
             time.sleep(self.__request_limit - elapsed_time)
             print(f"(Sleep {self.__request_limit - elapsed_time} secs to avoid posting requests too frequently.)")
+
+        # TODO: When using `self.chat_api.post_api_room_with_roomid()`, it's challenging to address
+        #  issues related to UTF-8 due to the complex relationships in the generated library and its
+        #  many dependencies. The current solution is to directly use the `requests` library.
+        # self.chat_api.post_api_room_with_roomid(room_id=self.room_id, session=self.session_token, body=message)
+        res = requests.post(url=self.chat_api.api_client.configuration.host + f"/api/room/{self.room_id}",
+                            params={"session": self.session_token}, data=message.encode('utf-8'))
         try:
-            self.chat_api.post_api_room_with_roomid(room_id=self.room_id, session=self.session_token, body=message)
-            self.__last_post_call = time.time()  # store the completed time
-        except exceptions.UnauthorizedException as e:
-            e.reason += f" (Failed to post message to room {self.room_id})"
-            raise e
-        except exceptions.NotFoundException as e:
-            e.reason += f" (Failed to post message because the room {self.room_id} is not found)"
-            raise e
+            res.raise_for_status()
+        except requests.exceptions.HTTPError as http_err:
+            if res.status_code == 401:
+                raise exceptions.UnauthorizedException(
+                    status=res.status_code,
+                    reason="Failed to post a message. Please check your credentials.") from http_err
+            elif res.status_code == 404:
+                raise exceptions.NotFoundException(
+                    status=res.status_code,
+                    reason=f"Failed to post a message because the room {self.room_id} is not found.") from http_err
+            else:
+                raise http_err
+
+        self.__last_post_call = time.time()  # store the completed time
 
     def mark_as_processed(self, msg_or_rec: Union[RestChatMessage, ChatMessageReaction]):
         if isinstance(msg_or_rec, RestChatMessage):
