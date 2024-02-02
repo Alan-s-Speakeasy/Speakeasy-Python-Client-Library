@@ -1,8 +1,11 @@
-import logging
 import time
+import warnings
+import requests
 
 from datetime import datetime
 from typing import List, Union
+from speakeasypy.openapi.client.api.chat_api import ChatApi
+from speakeasypy.openapi.client import exceptions
 from speakeasypy.openapi.client.models import RestChatMessage, ChatMessageReaction
 
 
@@ -35,13 +38,11 @@ class Chatroom:
         self.user_aliases = user_aliases
         self.initiated = False  # This flag indicates whether a welcome message has been sent
 
-        logging.basicConfig(level=logging.INFO)
-
         self.session_token = kwargs.get('session_token', None)
-        self.chat_api = kwargs.get('chat_api', None)
+        self.chat_api: ChatApi = kwargs.get('chat_api', None)
         if self.session_token is None or self.chat_api is None:
-            logging.error(f"No session_token or chat_api for chatroom {self.room_id}, "
-                          f"api requests by this chatroom will result in an error")
+            warnings.warn(f"No session_token or chat_api for chatroom {self.room_id}, "
+                          f"API requests by this chatroom will result in an error.")
         # Store ordinals for processed messages and reactions to exclude them from "new" messages.
         self.processed_ordinals = {
             'messages': [],
@@ -57,43 +58,44 @@ class Chatroom:
     def __update_chat_room_state(self):
         """ Cache the state of this room and implement a request rate limit for this API call. """
         if not self.session_token:
-            logging.error(f"This room {self.room_id} has no active session. Updating room state failed.")
-            return
+            reason = f"Failed to update room state because the room {self.room_id} has no active session."
+            raise exceptions.UnauthorizedException(status=401, reason=reason)
+
         current_time = time.time()
         elapsed_time = current_time - self.__last_state_call
         if elapsed_time < self.__request_limit and self.__state_api_cache is not None:
             return
-
         try:
             response = self.chat_api.get_api_room_with_roomid_with_since(
                 room_id=self.room_id, since=self.__last_msg_timestamp, session=self.session_token)
-            if response:
-                if self.__state_api_cache is None:
-                    self.__state_api_cache = response
-                else:
-                    # The reactions returned by the backend have nothing to do with the "since" parameter for now,
-                    # so just copy all reactions here.
-                    self.__state_api_cache.reactions = response.reactions
-                    # Append new messages and update the last timestamp
-                    for m in response.messages:
-                        if m.ordinal not in [msg.ordinal for msg in self.__state_api_cache.messages]:
-                            self.__state_api_cache.messages.append(m)
-                            self.__last_msg_timestamp = max(self.__last_msg_timestamp, m.time_stamp)
+
+            if self.__state_api_cache is None:
+                self.__state_api_cache = response
             else:
-                logging.error(f"Failed to update the state of room {self.room_id}.")
+                # The reactions returned by the backend have nothing to do with the "since" parameter for now,
+                # so just copy all reactions here.
+                self.__state_api_cache.reactions = response.reactions
+                # Append new messages and update the last timestamp
+                for m in response.messages:
+                    if m.ordinal not in [msg.ordinal for msg in self.__state_api_cache.messages]:
+                        self.__state_api_cache.messages.append(m)
+                        self.__last_msg_timestamp = max(self.__last_msg_timestamp, m.time_stamp)
             self.__last_state_call = current_time
-        except Exception as e:
-            logging.error(f"An error occurred while updating the state of room {self.room_id}: {e}")
+        except exceptions.UnauthorizedException as e:
+            e.reason += f" (Failed to update the state of room {self.room_id})"
+            raise e
+        except exceptions.NotFoundException as e:
+            e.reason += f" (Failed to find the room {self.room_id})"
+            raise e
 
     def get_messages(self, only_partner=True, only_new=True) -> List[RestChatMessage]:
         self.__update_chat_room_state()
         if self.__state_api_cache is None:
-            logging.error(f"Updating room state failed. No messages in room {self.room_id}.")
             return []
 
         filtered_messages = self.__state_api_cache.messages
 
-        if only_partner:  # TODO: openAPI will automatically converts 'authorAlias' to 'author_alias'
+        if only_partner:
             filtered_messages = [message for message in filtered_messages if message.author_alias != self.my_alias]
 
         if only_new:
@@ -105,7 +107,6 @@ class Chatroom:
     def get_reactions(self, only_new=True) -> List[ChatMessageReaction]:
         self.__update_chat_room_state()
         if self.__state_api_cache is None:
-            logging.error(f"Updating room state failed. No reactions in room {self.room_id}.")
             return []
 
         filtered_reactions = self.__state_api_cache.reactions
@@ -114,26 +115,40 @@ class Chatroom:
                                   reaction.message_ordinal not in self.processed_ordinals['reactions']]
         return filtered_reactions
 
-    def post_messages(self, message):
-        if self.session_token:
-            # Check if the time elapsed since the last post call is less than the request limit.
-            current_time = time.time()
-            elapsed_time = current_time - self.__last_post_call
-            # If elapsed time is less than the request limit, sleep for the remaining time to enforce rate limiting.
-            if elapsed_time < self.__request_limit:
-                time.sleep(self.__request_limit - elapsed_time)
-                print(f"(Sleep {self.__request_limit - elapsed_time} secs to avoid posting requests too frequently.)")
-            try:
-                response = self.chat_api.post_api_room_with_roomid(
-                    room_id=self.room_id, session=self.session_token, body=message)
-                if not response:
-                    logging.error(f"Failed to post message to room {self.room_id}.")
-            except Exception as e:
-                logging.error(f"An error occurred while posting the message to room {self.room_id}:", e)
+    def post_messages(self, message: str):
+        if not self.session_token:
+            reason = f"Failed to post messages because the room {self.room_id} has no active session."
+            raise exceptions.UnauthorizedException(status=401, reason=reason)
 
-            self.__last_post_call = time.time()  # store the completed time
-        else:
-            logging.error(f"This room {self.room_id} has no active session. Posting messages failed.")
+        # Check if the time elapsed since the last post call is less than the request limit.
+        current_time = time.time()
+        elapsed_time = current_time - self.__last_post_call
+        # If elapsed time is less than the request limit, sleep for the remaining time to enforce rate limiting.
+        if elapsed_time < self.__request_limit:
+            time.sleep(self.__request_limit - elapsed_time)
+            print(f"(Sleep {self.__request_limit - elapsed_time} secs to avoid posting requests too frequently.)")
+
+        # TODO: When using `self.chat_api.post_api_room_with_roomid()`, it's challenging to address
+        #  issues related to UTF-8 due to the complex relationships in the generated library and its
+        #  many dependencies. The current solution is to directly use the `requests` library.
+        # self.chat_api.post_api_room_with_roomid(room_id=self.room_id, session=self.session_token, body=message)
+        res = requests.post(url=self.chat_api.api_client.configuration.host + f"/api/room/{self.room_id}",
+                            params={"session": self.session_token}, data=message.encode('utf-8'))
+        try:
+            res.raise_for_status()
+        except requests.exceptions.HTTPError as http_err:
+            if res.status_code == 401:
+                raise exceptions.UnauthorizedException(
+                    status=res.status_code,
+                    reason="Failed to post a message. Please check your credentials.") from http_err
+            elif res.status_code == 404:
+                raise exceptions.NotFoundException(
+                    status=res.status_code,
+                    reason=f"Failed to post a message because the room {self.room_id} is not found.") from http_err
+            else:
+                raise http_err
+
+        self.__last_post_call = time.time()  # store the completed time
 
     def mark_as_processed(self, msg_or_rec: Union[RestChatMessage, ChatMessageReaction]):
         if isinstance(msg_or_rec, RestChatMessage):
@@ -141,7 +156,7 @@ class Chatroom:
         elif isinstance(msg_or_rec, ChatMessageReaction):
             self.processed_ordinals['reactions'].append(msg_or_rec.message_ordinal)
         else:
-            logging.error("Please pass a message or reaction object to mark it as processed.")
+            raise TypeError("Please pass a message or reaction object to mark it as processed.")
 
     def get_chat_partner(self) -> str:
         # get the alias of your chat partner
