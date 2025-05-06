@@ -4,9 +4,9 @@ import requests
 
 from datetime import datetime
 from typing import List, Union
-from speakeasypy.openapi.client.api.chat_api import ChatApi
-from speakeasypy.openapi.client import exceptions
-from speakeasypy.openapi.client.models import RestChatMessage, ChatMessageReaction
+from openapi.api.chat_api import ChatApi
+from openapi import exceptions
+from openapi.models import RestChatMessage, ChatMessageReaction
 
 
 class Chatroom:
@@ -66,8 +66,10 @@ class Chatroom:
         if elapsed_time < self.__request_limit and self.__state_api_cache is not None:
             return
         try:
-            response = self.chat_api.get_api_room_with_roomid_with_since(
-                room_id=self.room_id, since=self.__last_msg_timestamp, session=self.session_token)
+            # TODO : This will fetch the entire chat history of the room, which is not efficient.
+            # This will be fixed soon when SSE streaming is implemented.
+            response = self.chat_api.get_api_room_by_room_id(
+                room_id=self.room_id, session=self.session_token)
 
             if self.__state_api_cache is None:
                 self.__state_api_cache = response

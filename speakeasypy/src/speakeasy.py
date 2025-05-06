@@ -1,9 +1,9 @@
-from speakeasypy.openapi.client import exceptions
-from speakeasypy.openapi.client import Configuration
-from speakeasypy.openapi.client.apis import UserApi
-from speakeasypy.openapi.client.apis import ChatApi
-from speakeasypy.openapi.client.api_client import ApiClient
-from speakeasypy.openapi.client.models import LoginRequest
+from openapi import exceptions
+from openapi import Configuration
+from openapi.api import UserApi
+from openapi.api import ChatApi
+from openapi.api_client import ApiClient
+from openapi.models import LoginRequest
 from speakeasypy.src.chatroom import Chatroom
 from typing import Dict, List
 
