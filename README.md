@@ -1,16 +1,17 @@
-# Speakeasy Python Client Library
+<div align="center">
+
+# Python library for [Speakeasy](https://github.com/Alan-s-Speakeasy/speakeasy)
+
+</div>
+
+
 
 ## Getting started
 ### 1. Install
 
-We provide a pre-built `whl` file for installation since `speakeasypy` has not been publicly released on PyPI for now. 
-You can find this file at the following path: `speakeasy-python-client-library/dist/speakeasypy-1.0.0-py3-none-any.whl`
-
-To install speakeasy in your local environment, use the following command:
-```shell
-pip install [local]/[path]/[to]/[your]/speakeasy-python-client-library/dist/speakeasypy-1.0.0-py3-none-any.whl
+```zsh
+pip install git+https://github.com/Alan-s-Speakeasy/Speakeasy-Python-Client-Library
 ```
-Please replace `[local]/[path]/[to]/[your]` with the actual path to the directory containing the `speakeasypy-1.0.0-py3-none-any.whl` file.
 
 ### 2. Initialize the Speakeasy Python framework and login
 
@@ -19,7 +20,6 @@ Please ensure that you are using the valid username and password of your bot.
 from speakeasypy import Speakeasy
 speakeasy = Speakeasy(host='https://speakeasy.ifi.uzh.ch', username='name', password='pass')
 speakeasy.login()  
-# This framework will help you log out automatically when the program terminates.
 ```
 
 ### 3. Get chatrooms
