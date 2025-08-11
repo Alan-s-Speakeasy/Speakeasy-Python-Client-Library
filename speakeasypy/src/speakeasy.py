@@ -1,14 +1,28 @@
-from openapi import exceptions
-from openapi import Configuration
-from openapi.api import UserApi
-from openapi.api import ChatApi
-from openapi.api_client import ApiClient
-from openapi.models import LoginRequest
-from speakeasypy.src.chatroom import Chatroom
+import atexit
+import json
+import time
+from enum import Enum
+from pprint import pprint
 from typing import Dict, List
 
-import atexit
-import time
+import sseclient
+from alive_progress import alive_it
+from alive_progress.styles import Show, showtime
+from openapi import Configuration, exceptions
+from openapi.api import ChatApi, UserApi
+from openapi.api_client import ApiClient
+from openapi.models import ChatMessageReaction, LoginRequest, RestChatMessage
+
+from speakeasypy.src.chatroom import Chatroom
+
+
+class EventType(Enum):
+    """
+    Enumeration for the different types of events received from the SSE stream.
+    """
+    MESSAGE = "MESSAGE"
+    REACTION = "REACTION"
+    ROOMS = "ROOMS"
 
 
 class Speakeasy:
@@ -35,11 +49,18 @@ class Speakeasy:
 
         self.__request_limit = 1  # TODO: change the default value here!
 
+        # Register the logout function to be called on exit. 
         atexit.register(self.logout)
 
+        self.sse_client = None
+        self._callbacks_sse: Dict[EventType, List] = {
+            EventType.MESSAGE: [],
+            EventType.REACTION: [],
+            EventType.ROOMS: [],
+        }
+
     def login(self) -> str:
-        """Self-explanatory method to login to the API.
-        """
+        """Self-explanatory method to login to the API."""
         # Prepare the login request
         login_request = LoginRequest(
             username=self.config.username, password=self.config.password
@@ -57,9 +78,81 @@ class Speakeasy:
 
         return self.session_token
 
+    def start_listening(self):
+        """Start the listening process and call corresponding callbacks upon receiving events.
+
+        Under the hood, it uses a SSE client to receive events."""
+        if self.sse_client is None:
+            self.sse_client = self._connect_to_sse()
+        for event in alive_it(
+            self.sse_client,
+            stats=False,
+            title="Listening for events",
+            bar="bubbles",
+            spinner="dots_waves",
+        ):
+            event_type = (
+                EventType(event.event) if event.event in EventType.__members__ else None
+            )
+            callbacks = self._callbacks_sse[event_type] if event_type else []
+            event_data = json.loads(event.data) if event.data else {}
+
+            if event_type == EventType.MESSAGE:
+                chatroom = self._get_cached_chatroom(event_data["roomId"])
+                # The event does not contain this field, but the parser needs it
+                event_data["read"] = True
+                message = RestChatMessage.from_dict(event_data)
+                # Update the cached chatroom with the new message
+                chatroom.update_state_with_new_messages([message])
+                if event_data["authorAlias"] != chatroom.my_alias:
+                    for callback in callbacks:
+                        callback(message.message, chatroom)
+            elif event_type == EventType.REACTION:
+                chatroom = self._get_cached_chatroom(event_data["roomId"])
+                reaction = ChatMessageReaction.from_dict(event_data)
+                chatroom.update_state_with_new_reactions([reaction])
+                for callback in callbacks:
+                    callback(reaction.type, reaction.message_ordinal, chatroom)
+            elif event_type == EventType.ROOMS:
+                # Update the chatrooms cache when a new room is created or deleted
+                self.__update_chat_rooms()
+                chatroom = self._get_cached_chatroom(event_data["rooms"][0]["uid"])
+                for callback in callbacks:
+                    callback(chatroom)
+            else:
+                print(f"Unknown event type: {event_type}. No callbacks registered.")
+
+    def _get_cached_chatroom(self, room_id: str, _tries=0) -> Chatroom:
+        """Returns the cached Chatroom instance for the given room_id."""
+        if _tries > 3:
+            raise ValueError(
+                f"Failed to get chatroom {room_id} after 3 tries. It looks like the room does not exist"
+            )
+        if room_id in self._chatrooms_dict:
+            return self._chatrooms_dict[room_id]
+        else:
+            self.__update_chat_rooms()
+            # Wait a bit and retry, the backend sometimes needs time to add a new room
+            time.sleep(0.1)
+            return self._get_cached_chatroom(room_id, _tries + 1)
+
+    def _connect_to_sse(self):
+        sse_url = f"{self.config.host}/sse/rooms"
+        return sseclient.SSEClient(sse_url, cookies={"SESSIONID": self.session_token})
+
+    def register_callback(self, callback, event_type: EventType):
+        """Registers a callback function to be called when a specific event occurs."""
+        self._callbacks_sse[event_type].append(callback)
+
+    def remove_callback(self, callback, event_type: EventType):
+        """Removes a previously registered callback function for a specific event type."""
+        if callback in self._callbacks_sse[event_type]:
+            self._callbacks_sse[event_type].remove(callback)
+        else:
+            print(f"Callback {callback} not found for event type {event_type}.")
+
     def logout(self):
-        """Self-explanatory method to logout from the API.
-        """
+        """Self-explanatory method to logout from the API."""
         if self.session_token:
             self.user_api.get_api_logout(session=self.session_token)
             self.session_token = None
@@ -68,7 +161,10 @@ class Speakeasy:
             print("No active session to logout from.")
 
     def __update_chat_rooms(self):
-        """Cache the list of rooms and implement a request rate limit for this API call."""
+        """Cache the list of chat rooms and implement a request rate limit for this API call.
+
+        This method does not update the chatrooms messages or reactions, but rather only the chatrooms.
+        """
         if not self.session_token:
             reason = "Failed to fetch chatrooms because there is no active session (Please check if you are logged in)"
             raise exceptions.UnauthorizedException(status=401, reason=reason)
@@ -105,6 +201,8 @@ class Speakeasy:
                     "and have a valid session token)"
                 )
                 raise e
+        else:
+            print("WARNING : It looks like you are polling for chatrooms manually. Consider using event-streaming instead with `client.start_listening`.")
 
     def get_rooms(
         self, active=True

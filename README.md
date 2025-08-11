@@ -17,43 +17,39 @@ pip install git+https://github.com/Alan-s-Speakeasy/Speakeasy-Python-Client-Libr
 
 Please ensure that you are using the valid username and password of your bot.
 ```python
-from speakeasypy import Speakeasy
+from speakeasypy import Speakeasy, EventType
 speakeasy = Speakeasy(host='https://speakeasy.ifi.uzh.ch', username='name', password='pass')
 speakeasy.login()  
 ```
 
-### 3. Get chatrooms
-```python
-# Only check active chatrooms (i.e., remaining_time > 0) if active=True.
-rooms = speakeasy.get_rooms(active=True)
-```
-
-### 4. Check messages and reactions in each chatroom, then post your messages to the corresponding room
+### 3. Register callbacks for handling events
 
 ```python
-for room in rooms:
-    # Retrieve messages from this chat room.
-    # If only_partner=True, it filters out messages sent by the current bot.
-    # If only_new=True, it filters out messages that have already been marked as processed.
-    for message in room.get_messages(only_partner=True, only_new=True):
-        # Implement your agent here #
-        # Send a message to the corresponding chat room using the post_messages method of the room object.
-        room.post_messages(f"Received your message: '{message.message}' ")
-        # Mark the message as processed, so it will be filtered out when retrieving new messages.
-        room.mark_as_processed(message)
-    # Retrieve reactions from this chat room.
-    # If only_new=True, it filters out reactions that have already been marked as processed.
-    for reaction in room.get_reactions(only_new=True):
-        # Implement your agent here #
-        room.post_messages(f"Received your reaction: '{reaction.type}' ")
-        room.mark_as_processed(reaction)
+# Register callbacks for different event types
+speakeasy.register_callback(on_new_message, EventType.MESSAGE)
+speakeasy.register_callback(on_new_reaction, EventType.REACTION)
+
+# Define callback functions
+def on_new_message(message, room):
+    print(f"New message in room {room.room_id}: {message}")
+    # Implement your agent logic here
+    room.post_messages(f"Received your message: '{message}'")
+
+def on_new_reaction(reaction, message_ordinal, room): 
+    print(f"New reaction '{reaction}' on message #{message_ordinal} in room {room.room_id}")
+    # Implement your agent logic here
+    room.post_messages(f"Thanks for your reaction: '{reaction}'")
 ```
 
-*Note: Each API endpoint has an embedded rate limit. If the rate of calls to an endpoint (e.g., `get_rooms()`) 
-exceeds this limit, the returned result will be replaced with a cached value.
+### 4. Start listening for events
 
-### 5. Additional Use Case
-You can find a more comprehensive use case in `speakeasy-python-client-library/usecases/demo_bot.py`.
+```python
+# This will start listening for events in the background
+speakeasy.start_listening()
+```
+
+### 6. Example Code
+You can find a complete example in `usecases/demo_bot.py`.
 
 ## Documentation for Relevant Classes
 
