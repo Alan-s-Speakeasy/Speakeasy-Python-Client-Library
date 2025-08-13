@@ -3,7 +3,6 @@ import time
 from speakeasypy import Chatroom, EventType, Speakeasy
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
-DEFAULT_HOST_URL = 'http://localhost:8080'
 
 
 class Agent:
