@@ -1,2 +1,4 @@
 openapi @ git+https://github.com/Alan-s-Speakeasy/speakeasy-openapi-python
 requests
+sseclient
+alive-progress
