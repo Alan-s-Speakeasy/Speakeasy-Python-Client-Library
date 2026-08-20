@@ -1,8 +1,10 @@
 import time
 
-from speakeasypy import Chatroom, EventType, Speakeasy
+from speakeasypy import Chatroom, EventType, Speakeasy, get_logger
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
+
+logger = get_logger("demo_bot")
 
 
 class Agent:
@@ -21,15 +23,21 @@ class Agent:
 
     def on_new_message(self, message : str, room : Chatroom):
         """Callback function to handle new messages."""
-        print(f"New message in room {room.room_id}: {message}")
-        # Implement your agent logic here, e.g., respond to the message.
-        room.post_messages(f"Received your message: '{message}'")
+        try:
+            logger.info(f"New message in room {room.room_id}: {message}")
+            # Implement your agent logic here, e.g., respond to the message.
+            room.post_messages(f"Received your message: '{message}'")
+        except Exception:
+            logger.exception(f"Failed to handle message in room {room.room_id}: {message!r}")
 
-    def on_new_reaction(self, reaction : str, message_ordinal : int, room : Chatroom): 
+    def on_new_reaction(self, reaction : str, message_ordinal : int, room : Chatroom):
         """Callback function to handle new reactions."""
-        print(f"New reaction '{reaction}' on message #{message_ordinal} in room {room.room_id}")
-        # Implement your agent logic here, e.g., respond to the reaction.
-        room.post_messages(f"Thanks for your reaction: '{reaction}'")
+        try:
+            logger.info(f"New reaction '{reaction}' on message #{message_ordinal} in room {room.room_id}")
+            # Implement your agent logic here, e.g., respond to the reaction.
+            room.post_messages(f"Thanks for your reaction: '{reaction}'")
+        except Exception:
+            logger.exception(f"Failed to handle reaction '{reaction}' on message #{message_ordinal} in room {room.room_id}")
 
     @staticmethod
     def get_time():
