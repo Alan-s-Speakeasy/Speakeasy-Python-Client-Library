@@ -3,9 +3,10 @@ import time
 from speakeasypy import Chatroom, EventType, Speakeasy, get_logger
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
+BOT_USERNAME = 'TODO'
+BOT_PASSWORD = 'TODO'
 
 logger = get_logger("demo_bot")
-
 
 class Agent:
     def __init__(self, username, password):
@@ -45,5 +46,5 @@ class Agent:
 
 
 if __name__ == '__main__':
-    demo_bot = Agent("bot1", "bot1")
+    demo_bot = Agent(BOT_USERNAME, BOT_PASSWORD)
     demo_bot.listen()
