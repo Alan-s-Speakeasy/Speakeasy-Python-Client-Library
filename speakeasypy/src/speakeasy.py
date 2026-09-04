@@ -1,9 +1,10 @@
 import atexit
 import json
+import logging
 import time
 from enum import Enum
 from pprint import pprint
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import sseclient
 from alive_progress import alive_it
@@ -14,6 +15,7 @@ from openapi.api_client import ApiClient
 from openapi.models import ChatMessageReaction, LoginRequest, RestChatMessage
 
 from speakeasypy.src.chatroom import Chatroom
+from speakeasypy.src.logger import get_logger
 
 
 class EventType(Enum):
@@ -31,7 +33,9 @@ class Speakeasy:
         host: str,  # production: host = https://speakeasy.ifi.uzh.ch
         username: str,
         password: str,
+        logger: Optional[logging.Logger] = None,
     ):
+        self.logger = logger or get_logger()
 
         self.config = Configuration(host=host, username=username, password=password)
         # Create an instance of the API client
@@ -70,7 +74,7 @@ class Speakeasy:
             response = self.user_api.post_api_login(
                 login_request=login_request
             )  # user session details
-            print("Login successful. Session token:", response.session_token)
+            self.logger.info(f"Login successful. Session token: [{response.session_token}]")
             self.session_token = response.session_token
         except exceptions.UnauthorizedException as e:
             e.reason += " (Please try again with the correct username and password)"
@@ -156,9 +160,9 @@ class Speakeasy:
         if self.session_token:
             self.user_api.get_api_logout(session=self.session_token)
             self.session_token = None
-            print("Logout successful.")
+            self.logger.info("Logout successful.")
         else:
-            print("No active session to logout from.")
+            self.logger.info("No active session to logout from.")
 
     def __update_chat_rooms(self):
         """Cache the list of chat rooms and implement a request rate limit for this API call.
@@ -234,7 +238,7 @@ class Speakeasy:
         self.__update_chat_rooms()
 
         if active:  # only returns active chatrooms (i.e., remaining_time > 0)
-            # TODO: To avoid a lag in active detection that would make room's apis throw errors
+            # TO DO: To avoid a lag in active detection that would make room's apis throw errors
             #  (those apis only allow interactions for active rooms),
             #  we can increase the threshold to self.__request_limit * 1000
             return [
