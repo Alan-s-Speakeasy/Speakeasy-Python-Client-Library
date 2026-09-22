@@ -4,13 +4,28 @@
 
 </div>
 
+## Quick start
+### 1. Install
+
+```zsh
+pip install -e .
+```
+### 2. Example Code
+You can find a complete example in `usecases/demo_bot.py`.
 
 
 ## Getting started
 ### 1. Install
 
+Recommended: Set up a venv
 ```zsh
-pip install git+https://github.com/Alan-s-Speakeasy/Speakeasy-Python-Client-Library
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Do actual installation
+```zsh
+pip install -e .
 ```
 
 ### 2. Initialize the Speakeasy Python framework and login
@@ -48,7 +63,7 @@ def on_new_reaction(reaction, message_ordinal, room):
 speakeasy.start_listening()
 ```
 
-### 6. Example Code
+### 5. Example Code
 You can find a complete example in `usecases/demo_bot.py`.
 
 
